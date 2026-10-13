@@ -1,0 +1,6 @@
+{
+  "name": "Rotina Visual & Timer",
+  "description": "Webapp de rotina visual diária e timer interativo para crianças com apoio visual, fotos e impressão.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

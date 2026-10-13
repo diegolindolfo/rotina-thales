@@ -7,19 +7,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   RoutineState,
   RoutineCard,
-  DAY_NAMES,
   DAY_NAMES_SHORT,
   TimerConfig,
   RoutineBlockId,
   ROUTINE_BLOCKS,
   getCardBlockId,
+  getCurrentBlockId,
 } from './types/routine';
 import {
   loadRoutineState,
   saveRoutineState,
   toMinutes,
   nowMinutes,
-  getFormattedCurrentTime,
   getTodayDateString,
   uid,
 } from './utils/storage';
@@ -63,8 +62,8 @@ export default function App() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isWeekView, setIsWeekView] = useState(false);
 
-  // Active routine block filter ('all', 'manha', 'escola', 'volta', 'dormir')
-  const [activeBlock, setActiveBlock] = useState<RoutineBlockId>('all');
+  // Active routine block: ALWAYS opens automatically on current time of day!
+  const [activeBlock, setActiveBlock] = useState<RoutineBlockId>(getCurrentBlockId);
 
   // Live time tracking
   const [currentMinutes, setCurrentMinutes] = useState(nowMinutes);
@@ -125,20 +124,10 @@ export default function App() {
     }));
   };
 
-  // Count items per block for current day
-  const blockCounts: Record<RoutineBlockId, number> = {
-    all: currentDayCards.length,
-    manha: currentDayCards.filter((c) => getCardBlockId(c.t) === 'manha').length,
-    escola: currentDayCards.filter((c) => getCardBlockId(c.t) === 'escola').length,
-    volta: currentDayCards.filter((c) => getCardBlockId(c.t) === 'volta').length,
-    dormir: currentDayCards.filter((c) => getCardBlockId(c.t) === 'dormir').length,
-  };
-
-  // Filtered cards based on activeBlock
-  const visibleCards =
-    activeBlock === 'all'
-      ? currentDayCards
-      : currentDayCards.filter((c) => getCardBlockId(c.t) === activeBlock);
+  // Filter cards strictly by active block (Manhã, Escola, Volta da escola, Dormir)
+  const visibleCards = currentDayCards.filter(
+    (c) => getCardBlockId(c.t) === activeBlock
+  );
 
   // Toggle task done
   const handleToggleDone = (cardId: string) => {
@@ -201,7 +190,7 @@ export default function App() {
     updateCurrentDays(newDays);
   };
 
-  // Sort cards chronologically
+  // Sort cards chronologically manually if desired
   const handleSortCards = () => {
     const newDays = [...state.days];
     newDays[activeDayIndex] = [...(state.days[activeDayIndex] || [])].sort((a, b) =>
@@ -223,7 +212,7 @@ export default function App() {
     setIsCardModalOpen(true);
   };
 
-  // Save card (new or edit)
+  // Save card (new or edit): automatically organizes chronologically by time!
   const handleSaveCard = (card: RoutineCard, index: number | null) => {
     const newDays = [...state.days];
     const dayCards = [...(newDays[activeDayIndex] || [])];
@@ -234,8 +223,15 @@ export default function App() {
       dayCards.push(card);
     }
 
+    // Automatically organize chronologically according to time!
+    dayCards.sort((a, b) => a.t.localeCompare(b.t));
+
     newDays[activeDayIndex] = dayCards;
     updateCurrentDays(newDays);
+
+    // Switch view automatically to the block corresponding to this card's time
+    setActiveBlock(getCardBlockId(card.t));
+
     playSound('ok', state.fx ?? true);
   };
 
@@ -347,9 +343,7 @@ export default function App() {
       ? '08:00'
       : activeBlock === 'volta'
       ? '13:00'
-      : activeBlock === 'dormir'
-      ? '20:30'
-      : '08:00';
+      : '20:30';
 
   const activeBlockConfig = ROUTINE_BLOCKS.find((b) => b.id === activeBlock);
 
@@ -369,95 +363,80 @@ export default function App() {
       <div className="no-print min-h-screen bg-[#f6f3ec] text-[#2b2f36] pb-28 pt-safe">
         {/* Top Header */}
         <header className="sticky top-0 z-30 bg-[#f6f3ec]/95 backdrop-blur-md border-b border-[#e3ded3] px-4 py-3 sm:py-3.5">
-          <div className="max-w-2xl mx-auto space-y-2.5">
-            <div className="flex items-center justify-between gap-3">
-              {/* Child Profile Widget */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setIsProfileOpen(true)}
-                className="flex items-center gap-3 cursor-pointer group select-none min-w-0"
-                title="Clique para editar o perfil"
-              >
-                <div className="relative">
-                  {state.photo ? (
-                    <img
-                      src={state.photo}
-                      alt={state.name}
-                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover shadow-xs border-2 border-white ring-2 ring-[#e3ded3] group-hover:ring-[#4a7c9d] transition"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white border-2 border-[#e3ded3] flex items-center justify-center text-[#4a7c9d] shadow-xs group-hover:border-[#4a7c9d] transition">
-                      <User className="w-7 h-7" />
-                    </div>
-                  )}
-                  {isEditMode && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#4a7c9d] rounded-full flex items-center justify-center text-[10px] text-white">
-                      ✎
-                    </div>
-                  )}
-                </div>
-
-                <div className="min-w-0">
-                  <h1 className="text-xl sm:text-2xl font-black text-[#2b2f36] truncate flex items-center gap-1.5">
-                    <span>Rotina do {state.name}</span>
-                    {isEditMode && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#4a7c9d] text-white font-bold">
-                        Edição
-                      </span>
-                    )}
-                  </h1>
-                  <div className="text-xs font-semibold text-[#7a7f87] flex items-center gap-2">
-                    <span>{DAY_NAMES[activeDayIndex]}</span>
-                    <span>•</span>
-                    <span>{currentDayCards.length} tarefas</span>
-                    {activeBlock !== 'all' && (
-                      <>
-                        <span>•</span>
-                        <span className="font-extrabold text-[#4a7c9d]">
-                          {activeBlockConfig?.label}
-                        </span>
-                      </>
-                    )}
+          <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+            {/* Child Profile Widget (clean, non-cluttered) */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setIsProfileOpen(true)}
+              className="flex items-center gap-3 cursor-pointer group select-none min-w-0"
+              title="Clique para editar o perfil"
+            >
+              <div className="relative flex-none">
+                {state.photo ? (
+                  <img
+                    src={state.photo}
+                    alt={state.name}
+                    className="w-12 h-12 sm:w-13 sm:h-13 rounded-full object-cover shadow-xs border-2 border-white ring-2 ring-[#e3ded3] group-hover:ring-[#4a7c9d] transition"
+                  />
+                ) : (
+                  <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-white border-2 border-[#e3ded3] flex items-center justify-center text-[#4a7c9d] shadow-xs group-hover:border-[#4a7c9d] transition">
+                    <User className="w-6 h-6" />
                   </div>
-                </div>
+                )}
+                {isEditMode && (
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#4a7c9d] rounded-full flex items-center justify-center text-[10px] text-white">
+                    ✎
+                  </div>
+                )}
               </div>
 
-              {/* Action Buttons in Header */}
-              <div className="flex items-center gap-2 flex-none">
-                {/* PWA Install Button */}
-                <PWAInstallButton />
-
-                {/* Week toggle */}
-                <button
-                  type="button"
-                  onClick={() => setIsWeekView(!isWeekView)}
-                  className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition shadow-xs ${
-                    isWeekView
-                      ? 'bg-[#4a7c9d] text-white border-[#4a7c9d]'
-                      : 'bg-white border-[#e3ded3] text-[#2b2f36] hover:bg-stone-50'
-                  }`}
-                  title="Visão Semanal"
-                  aria-label="Visão Semanal"
-                >
-                  <Calendar className="w-5 h-5" />
-                </button>
-
-                {/* Edit mode toggle */}
-                <button
-                  type="button"
-                  onClick={() => setIsEditMode(!isEditMode)}
-                  className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition shadow-xs ${
-                    isEditMode
-                      ? 'bg-[#4a7c9d] text-white border-[#4a7c9d]'
-                      : 'bg-white border-[#e3ded3] text-[#2b2f36] hover:bg-stone-50'
-                  }`}
-                  title={isEditMode ? 'Sair da edição' : 'Modo edição'}
-                  aria-label="Editar rotina"
-                >
-                  <Pencil className="w-5 h-5" />
-                </button>
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-black text-[#2b2f36] truncate flex items-center gap-1.5">
+                  <span>Rotina do {state.name}</span>
+                  {isEditMode && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[#4a7c9d] text-white font-bold">
+                      Edição
+                    </span>
+                  )}
+                </h1>
               </div>
+            </div>
+
+            {/* Action Buttons in Header */}
+            <div className="flex items-center gap-2 flex-none">
+              {/* PWA Install Button */}
+              <PWAInstallButton />
+
+              {/* Week toggle */}
+              <button
+                type="button"
+                onClick={() => setIsWeekView(!isWeekView)}
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition shadow-xs ${
+                  isWeekView
+                    ? 'bg-[#4a7c9d] text-white border-[#4a7c9d]'
+                    : 'bg-white border-[#e3ded3] text-[#2b2f36] hover:bg-stone-50'
+                }`}
+                title="Visão Semanal"
+                aria-label="Visão Semanal"
+              >
+                <Calendar className="w-5 h-5" />
+              </button>
+
+              {/* Edit mode toggle */}
+              <button
+                type="button"
+                onClick={() => setIsEditMode(!isEditMode)}
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition shadow-xs ${
+                  isEditMode
+                    ? 'bg-[#4a7c9d] text-white border-[#4a7c9d]'
+                    : 'bg-white border-[#e3ded3] text-[#2b2f36] hover:bg-stone-50'
+                }`}
+                title={isEditMode ? 'Sair da edição' : 'Modo edição'}
+                aria-label="Editar rotina"
+              >
+                <Pencil className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </header>
@@ -497,13 +476,12 @@ export default function App() {
             })}
           </div>
 
-          {/* Routine Blocks Organization Bar (Manhã de escola, Na escola, Volta da escola, Hora de dormir) */}
+          {/* Routine Blocks (Manhã, Escola, Volta da escola, Dormir) */}
           {!isWeekView && (
             <div className="pt-2">
               <RoutineBlocksBar
                 activeBlock={activeBlock}
                 onSelectBlock={setActiveBlock}
-                counts={blockCounts}
               />
             </div>
           )}
@@ -522,48 +500,21 @@ export default function App() {
               }}
             />
           ) : (
-            /* Day View */
+            /* Day View - Pure, clean, peaceful list of cards without redundant banners */
             <div>
-              {/* Day Header */}
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h2 className="text-2xl font-black text-[#2b2f36] flex items-center gap-2">
-                  <span>{DAY_NAMES[activeDayIndex]}</span>
-                  {activeDayIndex === todayIndex && (
-                    <span className="text-sm font-bold text-[#4a7c9d]">
-                      · hoje
-                    </span>
-                  )}
-                </h2>
-
-                {/* Progress / Tasks Summary */}
-                {visibleCards.length > 0 && !isEditMode && (
-                  <div className="text-xs font-bold text-[#7a7f87]">
-                    {
-                      visibleCards.filter((c) => state.done.ids.includes(c.id))
-                        .length
-                    }{' '}
-                    / {visibleCards.length} concluídas
-                  </div>
-                )}
-              </div>
-
-              {/* Cards List */}
               {currentDayCards.length === 0 ? (
                 <div className="rounded-3xl bg-white border-2 border-dashed border-[#e3ded3] p-8 text-center my-6">
                   <span className="text-4xl block mb-2">📋</span>
                   <h3 className="text-lg font-bold text-[#2b2f36]">
                     Nenhum cartão neste dia
                   </h3>
-                  <p className="text-xs text-[#7a7f87] mt-1 mb-4">
-                    Adicione atividades ou copie a rotina de outro dia.
-                  </p>
                   <button
                     type="button"
                     onClick={handleOpenAddCard}
-                    className="px-5 py-2.5 rounded-xl bg-[#4a7c9d] text-white font-bold text-sm shadow-sm hover:bg-[#3d6884] transition inline-flex items-center gap-2"
+                    className="mt-4 px-5 py-2.5 rounded-xl bg-[#4a7c9d] text-white font-bold text-sm shadow-sm hover:bg-[#3d6884] transition inline-flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
-                    Adicionar Primeira Atividade
+                    Adicionar Atividade
                   </button>
                 </div>
               ) : visibleCards.length === 0 ? (
@@ -572,101 +523,17 @@ export default function App() {
                   <h3 className="text-lg font-bold text-[#2b2f36]">
                     Nenhuma atividade em {activeBlockConfig?.label}
                   </h3>
-                  <p className="text-xs text-[#7a7f87] mt-1 mb-4">
-                    {activeBlockConfig?.timeRange}
-                  </p>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    <button
-                      type="button"
-                      onClick={handleOpenAddCard}
-                      className="px-5 py-2.5 rounded-xl bg-[#4a7c9d] text-white font-bold text-sm shadow-sm hover:bg-[#3d6884] transition inline-flex items-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Adicionar em {activeBlockConfig?.label}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveBlock('all')}
-                      className="px-4 py-2.5 rounded-xl bg-white border border-[#e3ded3] text-[#2b2f36] font-bold text-sm hover:bg-stone-50 transition"
-                    >
-                      Ver Dia Todo
-                    </button>
-                  </div>
-                </div>
-              ) : activeBlock === 'all' ? (
-                /* Grouped by 4 Routine Blocks (Manhã de escola, Na escola, Volta da escola, Hora de dormir) */
-                <div className="space-y-6">
-                  {ROUTINE_BLOCKS.map((block) => {
-                    const blockCards = currentDayCards.filter(
-                      (c) => getCardBlockId(c.t) === block.id
-                    );
-                    if (blockCards.length === 0) return null;
-
-                    const isDormir = block.id === 'dormir';
-
-                    return (
-                      <section key={block.id} className="space-y-2.5">
-                        {/* Section Header matching the pill motif */}
-                        <div className="flex items-center justify-between px-1.5 pt-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xl sm:text-2xl leading-none">
-                              {block.emoji}
-                            </span>
-                            <h3
-                              className={`text-base sm:text-lg font-black ${
-                                isDormir ? 'text-[#363248]' : 'text-[#2b2f36]'
-                              }`}
-                            >
-                              {block.label}
-                            </h3>
-                          </div>
-                          <span className="text-[11px] font-bold text-[#7a7f87] bg-white/80 px-2.5 py-0.5 rounded-full border border-black/5 shadow-2xs">
-                            {block.timeRange}
-                          </span>
-                        </div>
-
-                        {/* Cards in this block */}
-                        <div className="space-y-3">
-                          {blockCards.map((card) => {
-                            const originalIdx = currentDayCards.findIndex(
-                              (c) => c.id === card.id
-                            );
-                            const isDone = state.done.ids.includes(card.id);
-                            const isCurrentActive =
-                              isViewingToday && originalIdx === activeCardIndex;
-
-                            let progressPercent = 0;
-                            if (isCurrentActive && currentDayCards[originalIdx + 1]) {
-                              const start = toMinutes(card.t);
-                              const end = toMinutes(currentDayCards[originalIdx + 1].t);
-                              if (end > start) {
-                                progressPercent =
-                                  ((currentMinutes - start) / (end - start)) * 100;
-                              }
-                            }
-
-                            return (
-                              <RoutineCardItem
-                                key={card.id}
-                                card={card}
-                                index={originalIdx}
-                                isDone={isDone}
-                                isEditMode={isEditMode}
-                                isCurrentActive={isCurrentActive}
-                                progressPercent={progressPercent}
-                                onToggleDone={handleToggleDone}
-                                onEditCard={handleOpenEditCard}
-                                onMoveCard={handleMoveCard}
-                              />
-                            );
-                          })}
-                        </div>
-                      </section>
-                    );
-                  })}
+                  <button
+                    type="button"
+                    onClick={handleOpenAddCard}
+                    className="mt-4 px-5 py-2.5 rounded-xl bg-[#4a7c9d] text-white font-bold text-sm shadow-sm hover:bg-[#3d6884] transition inline-flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Adicionar em {activeBlockConfig?.label}
+                  </button>
                 </div>
               ) : (
-                /* Filtered View for single active block */
+                /* Cards list with soothing active state */
                 <div className="space-y-3">
                   {visibleCards.map((card) => {
                     const originalIdx = currentDayCards.findIndex(

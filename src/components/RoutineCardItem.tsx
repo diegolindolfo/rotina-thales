@@ -49,14 +49,14 @@ export const RoutineCardItem: React.FC<RoutineCardItemProps> = ({
       style={{ backgroundColor: bgHex }}
       className={`group relative flex items-center justify-between w-full min-h-[96px] sm:min-h-[110px] p-4 sm:p-5 rounded-3xl border-2 transition-all cursor-pointer select-none overflow-hidden ${
         isCurrentActive && !isDone
-          ? 'border-[#4a7c9d] shadow-lg ring-4 ring-[#4a7c9d]/25'
+          ? 'border-[#4a7c9d]/50 ring-2 ring-[#4a7c9d]/20 shadow-sm bg-white/30'
           : 'border-transparent shadow-xs hover:border-black/10'
       } ${isDone ? 'opacity-40' : 'opacity-100'}`}
     >
       {/* Subtle elapsed progress bar (when active activity today) */}
       {isCurrentActive && !isDone && progressPercent > 0 && (
         <div
-          className="absolute left-0 bottom-0 h-2 bg-[#4a7c9d] transition-all duration-1000 ease-linear rounded-full"
+          className="absolute left-0 bottom-0 h-1 bg-[#4a7c9d]/35 transition-all duration-1000 ease-linear rounded-full"
           style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
         />
       )}
@@ -86,11 +86,11 @@ export const RoutineCardItem: React.FC<RoutineCardItemProps> = ({
               {card.t}
             </span>
 
-            {/* Subtle "Agora" badge inside the active card */}
+            {/* Subtle calm "Agora" badge inside the active card */}
             {isCurrentActive && !isDone && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#4a7c9d] text-white text-[11px] font-black uppercase tracking-wider shadow-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                Agora
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#4a7c9d]/12 border border-[#4a7c9d]/20 text-[#3d6884] text-[11px] font-bold tracking-tight">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#4a7c9d]" />
+                agora
               </span>
             )}
           </div>

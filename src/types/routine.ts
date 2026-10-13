@@ -58,25 +58,31 @@ export const ROUTINE_EMOJIS = [
   '📱', '🍪', '🥋', '🏊‍♂️', '📖', '🥪', '🧃', '🎉'
 ];
 
-export type RoutineBlockId = 'all' | 'manha' | 'escola' | 'volta' | 'dormir';
+export type RoutineBlockId = 'manha' | 'escola' | 'volta' | 'dormir';
 
 export interface RoutineBlockConfig {
   id: RoutineBlockId;
   label: string;
   emoji: string;
-  timeRange: string;
 }
 
 export const ROUTINE_BLOCKS: RoutineBlockConfig[] = [
-  { id: 'manha', label: 'Manhã de escola', emoji: '🌅', timeRange: 'Até 06:59' },
-  { id: 'escola', label: 'Na escola', emoji: '🏫', timeRange: '07:00 às 11:00' },
-  { id: 'volta', label: 'Volta da escola', emoji: '🏠', timeRange: '11:01 às 19:59' },
-  { id: 'dormir', label: 'Hora de dormir', emoji: '🌙', timeRange: 'A partir das 20:00' },
+  { id: 'manha', label: 'Manhã', emoji: '🌅' },
+  { id: 'escola', label: 'Escola', emoji: '🏫' },
+  { id: 'volta', label: 'Volta da escola', emoji: '🏠' },
+  { id: 'dormir', label: 'Dormir', emoji: '🌙' },
 ];
 
-export function getCardBlockId(timeStr: string): 'manha' | 'escola' | 'volta' | 'dormir' {
+export function getCardBlockId(timeStr: string): RoutineBlockId {
   if (timeStr < '07:00') return 'manha';
   if (timeStr <= '11:00') return 'escola';
   if (timeStr < '20:00') return 'volta';
   return 'dormir';
+}
+
+export function getCurrentBlockId(): RoutineBlockId {
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return getCardBlockId(`${hh}:${mm}`);
 }

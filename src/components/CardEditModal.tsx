@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { RoutineCard, CARD_COLORS, ROUTINE_EMOJIS } from '../types/routine';
 import { uid } from '../utils/storage';
-import { X, Trash2, Camera, Sparkles } from 'lucide-react';
+import { X, Trash2, Camera } from 'lucide-react';
 
 interface CardEditModalProps {
   isOpen: boolean;
@@ -12,26 +12,6 @@ interface CardEditModalProps {
   onSave: (card: RoutineCard, index: number | null) => void;
   onDelete?: (index: number) => void;
 }
-
-const COMMON_TASKS = [
-  'Acordar',
-  'Entrada na Escola',
-  'Acolhimento e Roda',
-  'Atividade em Sala',
-  'Intervalo e Lanche',
-  'Recreio e Pátio',
-  'Artes e Desenho',
-  'Guardar Mochila',
-  'Saída da Escola',
-  'Almoço',
-  'Banho',
-  'Tarefas da escola',
-  'Brincar',
-  'Passeio',
-  'Jantar',
-  'Escovar os dentes',
-  'Dormir',
-];
 
 export const CardEditModal: React.FC<CardEditModalProps> = ({
   isOpen,
@@ -160,29 +140,6 @@ export const CardEditModal: React.FC<CardEditModalProps> = ({
                 required
                 className="w-full rounded-xl bg-white border border-[#e3ded3] px-3 py-2.5 text-base font-semibold text-[#2b2f36] outline-none focus:border-[#4a7c9d]"
               />
-            </div>
-          </div>
-
-          {/* Quick task suggestions */}
-          <div>
-            <label className="block text-xs font-bold text-[#7a7f87] mb-1.5 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" /> Sugestões rápidas
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {COMMON_TASKS.map((taskName) => (
-                <button
-                  type="button"
-                  key={taskName}
-                  onClick={() => setTitle(taskName)}
-                  className={`text-xs px-2.5 py-1 rounded-lg border transition font-medium ${
-                    title === taskName
-                      ? 'bg-[#4a7c9d] text-white border-[#4a7c9d]'
-                      : 'bg-white text-[#2b2f36] border-[#e3ded3] hover:bg-stone-50'
-                  }`}
-                >
-                  {taskName}
-                </button>
-              ))}
             </div>
           </div>
 

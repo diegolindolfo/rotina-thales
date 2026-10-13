@@ -134,9 +134,7 @@ export const RoutineCardItem: React.FC<RoutineCardItemProps> = ({
           <div className="w-11 h-11 rounded-full bg-[#3b8a4a] text-white flex items-center justify-center shadow-md flex-none animate-in zoom-in-75 duration-200">
             <Check className="w-7 h-7 stroke-[3]" />
           </div>
-        ) : (
-          <div className="w-10 h-10 rounded-full border-2 border-black/20 bg-white/40 group-hover:border-[#4a7c9d] group-hover:bg-white/80 transition flex-none" />
-        )}
+        ) : null}
       </div>
     </div>
   );

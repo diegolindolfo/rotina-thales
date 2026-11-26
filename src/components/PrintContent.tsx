@@ -1,26 +1,19 @@
 import React from 'react';
-import { RoutineState, DAY_NAMES, DAY_NAMES_SHORT, CARD_COLORS } from '../types/routine';
+import { RoutineState, DAY_NAMES, DAY_NAMES_SHORT, CARD_COLORS, getCardImageSrc } from '../types/routine';
 
 interface PrintContentProps {
   state: RoutineState;
   activeDayIndex: number;
   mode: 'day' | 'week';
-  isSchoolMode?: boolean;
 }
 
 export const PrintContent: React.FC<PrintContentProps> = ({
   state,
   activeDayIndex,
   mode,
-  isSchoolMode = false,
 }) => {
-  const currentCards = isSchoolMode
-    ? (state.schoolDays?.[activeDayIndex] || [])
-    : (state.days[activeDayIndex] || []);
-
-  const allDays = isSchoolMode
-    ? (state.schoolDays || [])
-    : state.days;
+  const currentCards = state.days[activeDayIndex] || [];
+  const allDays = state.days;
 
   return (
     <div className="print-only p-4 max-w-4xl mx-auto">
@@ -34,22 +27,22 @@ export const PrintContent: React.FC<PrintContentProps> = ({
               className="w-16 h-16 rounded-full object-cover border-2 border-stone-400"
             />
           ) : (
-            <div className="w-16 h-16 rounded-full bg-stone-200 border-2 border-stone-400 flex items-center justify-center text-3xl font-bold">
+            <div className="w-16 h-16 rounded-full bg-stone-200 border-2 border-stone-400 flex items-center justify-center text-3xl font-extrabold">
               {state.name.charAt(0)}
             </div>
           )}
           <div>
             <h1 className="text-3xl font-black text-black">
-              {isSchoolMode ? `Rotina Escolar - ${state.name} (7h às 11h)` : `Rotina do ${state.name}`}
+              Rotina do {state.name}
             </h1>
             <p className="text-sm font-bold text-stone-600">
-              {mode === 'day' ? `Quadro Diário: ${DAY_NAMES[activeDayIndex]}` : 'Quadro Semanal'}
+              {mode === 'day' ? `Quadro Diário: ${DAY_NAMES[activeDayIndex]}` : 'Quadro Semanal Completo'}
             </p>
           </div>
         </div>
 
         <div className="text-right text-xs font-semibold text-stone-500">
-          <div>{isSchoolMode ? 'Quadro de Apoio Escolar' : 'Rotina Visual & Apoio'}</div>
+          <div>Rotina Visual & Apoio</div>
           <div>Data: ____/____/________</div>
         </div>
       </div>
@@ -58,7 +51,8 @@ export const PrintContent: React.FC<PrintContentProps> = ({
       {mode === 'day' && (
         <div className="space-y-3.5">
           {currentCards.map((card) => {
-            const bg = CARD_COLORS[card.c % 6];
+            const bg = CARD_COLORS[card.c % CARD_COLORS.length];
+            const imageSrc = getCardImageSrc(card);
             return (
               <div
                 key={card.id}
@@ -67,15 +61,15 @@ export const PrintContent: React.FC<PrintContentProps> = ({
               >
                 <div className="flex items-center gap-5">
                   {/* Time */}
-                  <span className="text-2xl font-black text-stone-900 w-20 tracking-tight font-mono">
+                  <span className="text-2xl font-black text-stone-900 w-20 tracking-tight font-mono tabular-nums">
                     {card.t}
                   </span>
 
                   {/* Icon or Photo */}
-                  <div className="w-16 h-16 flex items-center justify-center flex-none rounded-2xl bg-white/80 border border-stone-300">
-                    {card.p ? (
+                  <div className="w-16 h-16 flex items-center justify-center flex-none rounded-2xl bg-white/80 border border-stone-300 overflow-hidden">
+                    {imageSrc ? (
                       <img
-                        src={card.p}
+                        src={imageSrc}
                         alt=""
                         className="w-16 h-16 object-cover rounded-2xl"
                       />
@@ -121,23 +115,32 @@ export const PrintContent: React.FC<PrintContentProps> = ({
                     style={{ width: '14.28%' }}
                   >
                     {dayCards.length === 0 ? (
-                      <span className="text-[10px] text-stone-400 italic">Sem tarefas</span>
+                      <span className="text-[10px] text-stone-400 italic">Sem atividades</span>
                     ) : (
                       dayCards.map((card) => {
-                        const bg = CARD_COLORS[card.c % 6];
+                        const bg = CARD_COLORS[card.c % CARD_COLORS.length];
+                        const imageSrc = getCardImageSrc(card);
                         return (
                           <div
                             key={card.id}
                             style={{ backgroundColor: bg }}
                             className="p-1 rounded-lg border border-stone-300 text-[11px] leading-tight flex items-start gap-1"
                           >
-                            <span className="font-bold whitespace-nowrap text-stone-900">
+                            <span className="font-bold font-mono tabular-nums whitespace-nowrap text-stone-900">
                               {card.t}
                             </span>
                             <span className="flex-none">
-                              {card.p ? '📷' : card.e}
+                              {imageSrc ? (
+                                <img
+                                  src={imageSrc}
+                                  alt=""
+                                  className="w-4 h-4 rounded object-cover inline"
+                                />
+                              ) : (
+                                card.e
+                              )}
                             </span>
-                            <span className="font-medium text-stone-800 line-clamp-2">
+                            <span className="font-semibold text-stone-800 line-clamp-2">
                               {card.x}
                             </span>
                           </div>
@@ -154,3 +157,4 @@ export const PrintContent: React.FC<PrintContentProps> = ({
     </div>
   );
 };
+

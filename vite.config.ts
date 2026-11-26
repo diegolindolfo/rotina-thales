@@ -12,6 +12,9 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg}'],
+        },
         manifest: {
           id: '/',
           name: 'Rotina Visual & Timer',
@@ -51,7 +54,7 @@ export default defineConfig(() => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
       },
     },
     server: {

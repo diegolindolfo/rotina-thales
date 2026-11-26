@@ -1,8 +1,11 @@
-import { RoutineCard, RoutineState } from '../types/routine';
+import { CARD_COLORS, RoutineCard, RoutineState, TimerConfig, getIllustrationById } from '../types/routine';
 
 export const STORAGE_KEY = 'rotina-thales-v1';
 
-export const uid = () => Math.random().toString(36).slice(2, 9);
+export const uid = () =>
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID().slice(0, 8)
+    : Math.random().toString(36).slice(2, 9);
 
 export const toMinutes = (timeStr: string) => {
   const [h, m] = timeStr.split(':').map(Number);
@@ -37,42 +40,19 @@ const makeCards = (items: [string, string, string, number][]): RoutineCard[] =>
   }));
 
 function addExtraRoutines(list: RoutineCard[]): RoutineCard[] {
-  if (!list.some((c) => c.x === 'Jantar')) {
+  const copy = [...list];
+  if (!copy.some((c) => c.x === 'Jantar')) {
     const extras = makeCards(EXTRA_ROUTINES);
     extras.forEach((card) => {
-      const idx = list.findIndex((item) => item.t > card.t);
+      const idx = copy.findIndex((item) => item.t > card.t);
       if (idx < 0) {
-        list.push(card);
+        copy.push(card);
       } else {
-        list.splice(idx, 0, card);
+        copy.splice(idx, 0, card);
       }
     });
   }
-  return list;
-}
-
-export function getDefaultSchoolDays(): RoutineCard[][] {
-  const schoolDay = () =>
-    makeCards([
-      ['07:00', '🏫', 'Entrada na Escola', 0],
-      ['07:30', '🗣️', 'Acolhimento e Roda', 1],
-      ['08:00', '✏️', 'Atividade em Sala / Lição', 4],
-      ['09:00', '🍎', 'Intervalo e Lanche', 2],
-      ['09:30', '🧸', 'Recreio e Pátio', 3],
-      ['10:00', '📚', 'Atividades e Artes', 0],
-      ['10:45', '🎒', 'Organizar Mochila', 1],
-      ['11:00', '🏠', 'Saída / Voltar pra Casa', 2],
-    ]);
-
-  return [
-    schoolDay(),
-    schoolDay(),
-    schoolDay(),
-    schoolDay(),
-    schoolDay(),
-    [],
-    [],
-  ];
+  return copy.sort((a, b) => a.t.localeCompare(b.t));
 }
 
 export function getDefaultRoutineState(): RoutineState {
@@ -117,8 +97,6 @@ export function getDefaultRoutineState(): RoutineState {
     name: 'Thales',
     v: 2,
     days,
-    schoolDays: getDefaultSchoolDays(),
-    activeMode: 'full',
     done: {
       d: getTodayDateString(),
       ids: [],
@@ -131,35 +109,108 @@ export function getDefaultRoutineState(): RoutineState {
   };
 }
 
+const isObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const TIMER_THEMES: TimerConfig['th'][] = ['cheese', 'carrot', 'chase'];
+
+const isImageDataUrl = (v: unknown): v is string =>
+  typeof v === 'string' && v.startsWith('data:image/');
+
+function normalizeCard(raw: unknown): RoutineCard | null {
+  if (!isObject(raw)) return null;
+  if (typeof raw.t !== 'string' || !TIME_RE.test(raw.t)) return null;
+
+  const card: RoutineCard = {
+    id: typeof raw.id === 'string' && raw.id ? raw.id : uid(),
+    t: raw.t,
+    e: typeof raw.e === 'string' && raw.e.trim() ? raw.e : '⭐',
+    x: typeof raw.x === 'string' && raw.x.trim() ? raw.x : 'Atividade',
+    c:
+      typeof raw.c === 'number' && Number.isFinite(raw.c)
+        ? Math.abs(Math.trunc(raw.c)) % CARD_COLORS.length
+        : 0,
+  };
+  const validBlocks = ['manha', 'escola', 'volta', 'tarde', 'dormir'];
+  if (typeof raw.b === 'string' && validBlocks.includes(raw.b)) {
+    card.b = raw.b as RoutineCard['b'];
+  }
+  if (typeof raw.i === 'string' && (raw.i === 'none' || getIllustrationById(raw.i))) {
+    card.i = raw.i;
+  }
+  if (isImageDataUrl(raw.p)) card.p = raw.p;
+  return card;
+}
+
+function normalizeDays(raw: unknown): RoutineCard[][] | null {
+  if (!Array.isArray(raw) || raw.length !== 7) return null;
+  return raw.map((day) =>
+    Array.isArray(day)
+      ? day
+          .map(normalizeCard)
+          .filter((c): c is RoutineCard => c !== null)
+          .sort((a, b) => a.t.localeCompare(b.t))
+      : []
+  );
+}
+
+/**
+ * Validates and migrates any unknown value (from localStorage or an imported
+ * backup file) into a well-formed RoutineState. Invalid cards are dropped
+ * instead of crashing the app. Returns null if the structure is unusable.
+ */
+export function normalizeRoutineState(raw: unknown): RoutineState | null {
+  if (!isObject(raw)) return null;
+  const days = normalizeDays(raw.days);
+  if (!days) return null;
+
+  const today = getTodayDateString();
+  const doneIds =
+    isObject(raw.done) && raw.done.d === today && Array.isArray(raw.done.ids)
+      ? raw.done.ids.filter((id): id is string => typeof id === 'string')
+      : [];
+
+  const tm: TimerConfig =
+    isObject(raw.tm) &&
+    typeof raw.tm.m === 'number' &&
+    raw.tm.m >= 1 &&
+    raw.tm.m <= 120 &&
+    TIMER_THEMES.includes(raw.tm.th as TimerConfig['th'])
+      ? { m: Math.round(raw.tm.m), th: raw.tm.th as TimerConfig['th'] }
+      : { m: 5, th: 'cheese' };
+
+  return {
+    name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Thales',
+    photo: isImageDataUrl(raw.photo) ? raw.photo : undefined,
+    v: 2,
+    // Legacy (v1) data: add the extra default routines once
+    days: raw.v ? days : days.map(addExtraRoutines),
+    done: { d: today, ids: doneIds },
+    fx: typeof raw.fx === 'boolean' ? raw.fx : true,
+    tm,
+  };
+}
+
 export function loadRoutineState(): RoutineState {
+  let raw: string | null = null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as RoutineState;
-      if (parsed && Array.isArray(parsed.days) && parsed.days.length === 7) {
-        if (!parsed.v) {
-          parsed.days = parsed.days.map(addExtraRoutines);
-          parsed.v = 2;
-        }
-        if (!parsed.schoolDays || !Array.isArray(parsed.schoolDays) || parsed.schoolDays.length !== 7) {
-          parsed.schoolDays = getDefaultSchoolDays();
-        }
-        if (!parsed.activeMode) {
-          parsed.activeMode = 'full';
-        }
-        if (!parsed.done || parsed.done.d !== getTodayDateString()) {
-          parsed.done = {
-            d: getTodayDateString(),
-            ids: [],
-          };
-        }
-        if (parsed.fx === undefined) parsed.fx = true;
-        if (!parsed.tm) parsed.tm = { m: 5, th: 'cheese' };
-        return parsed;
-      }
+      const normalized = normalizeRoutineState(JSON.parse(raw));
+      if (normalized) return normalized;
     }
   } catch (e) {
     console.warn('Failed to load routine state from localStorage', e);
+  }
+
+  // Stored data exists but is unreadable: keep a copy before defaults overwrite it
+  if (raw) {
+    try {
+      localStorage.setItem(`${STORAGE_KEY}-corrupted`, raw);
+    } catch {
+      // ignore (storage may be full)
+    }
   }
 
   return getDefaultRoutineState();

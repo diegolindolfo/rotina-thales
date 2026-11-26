@@ -36,6 +36,7 @@ import { PrintModal } from './components/PrintModal';
 import { PrintContent } from './components/PrintContent';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { FocusModeView } from './components/FocusModeView';
 import {
   Calendar,
   Pencil,
@@ -51,6 +52,7 @@ import {
   Upload,
   Sparkles,
   Check,
+  Focus,
 } from 'lucide-react';
 
 export default function App() {
@@ -68,6 +70,7 @@ export default function App() {
   // View modes
   const [isEditMode, setIsEditMode] = useState(false);
   const [isWeekView, setIsWeekView] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
 
   // Weekend flags
   const isWeekendActiveDay = activeDayIndex === 5 || activeDayIndex === 6;
@@ -183,6 +186,7 @@ export default function App() {
 
   const handleSelectDay = (idx: number) => {
     setIsWeekView(false);
+    setIsFocusMode(false);
     setActiveDayIndex(idx);
     const targetIsWeekend = idx === 5 || idx === 6;
     const allowed = getBlocksForDay(targetIsWeekend);
@@ -200,6 +204,17 @@ export default function App() {
   const handleSelectBlock = (blockId: RoutineBlockId) => {
     userSelectedBlockRef.current = true;
     setActiveBlock(blockId);
+  };
+
+  const handleToggleFocusMode = () => {
+    if (isFocusMode) {
+      setIsFocusMode(false);
+      return;
+    }
+    setIsFocusMode(true);
+    setIsWeekView(false);
+    setIsEditMode(false);
+    setActiveDayIndex(todayIndex);
   };
 
   // Toggle task done
@@ -502,7 +517,11 @@ export default function App() {
                   )}
                 </div>
                 <p className="text-xs font-bold text-[#6b717b] truncate mt-0.5">
-                  {isWeekView
+                  {isFocusMode
+                    ? todayCards.length > 0
+                      ? `Modo Foco · ${todayDoneCount} de ${todayCards.length} concluídas`
+                      : `Modo Foco · ${DAY_NAMES[todayIndex]}`
+                    : isWeekView
                     ? 'Visão semanal completa'
                     : activeDayIndex === todayIndex
                     ? todayCards.length > 0
@@ -518,10 +537,29 @@ export default function App() {
               {/* PWA Install Button */}
               <PWAInstallButton />
 
+              {/* Focus mode toggle (Agora e Depois) */}
+              <button
+                type="button"
+                onClick={handleToggleFocusMode}
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition shadow-2xs cursor-pointer ${
+                  isFocusMode
+                    ? 'bg-[#3f7396] text-white border-[#3f7396]'
+                    : 'bg-white border-[#e2dcd0] text-[#252a31] hover:bg-[#efeae0]/60'
+                }`}
+                title="Modo Foco (Agora e Depois)"
+                aria-label="Modo Foco (Agora e Depois)"
+                aria-pressed={isFocusMode}
+              >
+                <Focus className="w-5 h-5" />
+              </button>
+
               {/* Week toggle */}
               <button
                 type="button"
-                onClick={() => setIsWeekView(!isWeekView)}
+                onClick={() => {
+                  setIsFocusMode(false);
+                  setIsWeekView(!isWeekView);
+                }}
                 className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition shadow-2xs cursor-pointer ${
                   isWeekView
                     ? 'bg-[#3f7396] text-white border-[#3f7396]'
@@ -537,7 +575,10 @@ export default function App() {
               {/* Edit mode toggle */}
               <button
                 type="button"
-                onClick={() => setIsEditMode(!isEditMode)}
+                onClick={() => {
+                  setIsFocusMode(false);
+                  setIsEditMode(!isEditMode);
+                }}
                 className={`flex h-11 items-center justify-center gap-1.5 px-3 rounded-2xl border font-extrabold text-xs transition shadow-2xs cursor-pointer ${
                   isEditMode
                     ? 'bg-[#3f7396] text-white border-[#3f7396]'
@@ -560,57 +601,70 @@ export default function App() {
           </div>
         </header>
 
-        {/* Day Tabs */}
-        <div className="max-w-2xl mx-auto px-4 pt-3 pb-1">
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1" role="tablist" aria-label="Dias da semana">
-            {DAY_NAMES_SHORT.map((shortName, idx) => {
-              const isSelected = idx === activeDayIndex && !isWeekView;
-              const isToday = idx === todayIndex;
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  role="tab"
-                  aria-selected={isSelected}
-                  onClick={() => handleSelectDay(idx)}
-                  className={`flex-1 min-w-[46px] py-2.5 rounded-2xl text-center text-sm font-extrabold border transition shadow-2xs cursor-pointer active:scale-97 ${
-                    isSelected
-                      ? 'bg-[#3f7396] text-white border-[#3f7396] shadow-xs'
-                      : isToday
-                      ? 'bg-white border-[#3f7396] text-[#3f7396]'
-                      : 'bg-white border-[#e2dcd0] text-[#6b717b] hover:bg-[#efeae0]/60 hover:text-[#252a31]'
-                  }`}
-                >
-                  <div>{shortName}</div>
-                  {isToday && (
-                    <div
-                      className={`w-1.5 h-1.5 rounded-full mx-auto mt-0.5 ${
-                        isSelected ? 'bg-white' : 'bg-[#3f7396]'
-                      }`}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Routine Blocks (dynamic: weekdays vs weekends) */}
-          {!isWeekView && (
-            <div className="pt-2">
-              <RoutineBlocksBar
-                blocks={activeDayBlocks}
-                activeBlock={activeBlock}
-                onSelectBlock={handleSelectBlock}
-                blockCounts={blockCounts}
-                showDoneProgress={activeDayIndex === todayIndex && !isEditMode}
-              />
+        {/* Day Tabs & Routine Blocks (hidden in Focus Mode for calm UX) */}
+        {!isFocusMode && (
+          <div className="max-w-2xl mx-auto px-4 pt-3 pb-1">
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1" role="tablist" aria-label="Dias da semana">
+              {DAY_NAMES_SHORT.map((shortName, idx) => {
+                const isSelected = idx === activeDayIndex && !isWeekView;
+                const isToday = idx === todayIndex;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    role="tab"
+                    aria-selected={isSelected}
+                    onClick={() => handleSelectDay(idx)}
+                    className={`flex-1 min-w-[46px] py-2.5 rounded-2xl text-center text-sm font-extrabold border transition shadow-2xs cursor-pointer active:scale-97 ${
+                      isSelected
+                        ? 'bg-[#3f7396] text-white border-[#3f7396] shadow-xs'
+                        : isToday
+                        ? 'bg-white border-[#3f7396] text-[#3f7396]'
+                        : 'bg-white border-[#e2dcd0] text-[#6b717b] hover:bg-[#efeae0]/60 hover:text-[#252a31]'
+                    }`}
+                  >
+                    <div>{shortName}</div>
+                    {isToday && (
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full mx-auto mt-0.5 ${
+                          isSelected ? 'bg-white' : 'bg-[#3f7396]'
+                        }`}
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </div>
+
+            {/* Routine Blocks (dynamic: weekdays vs weekends) */}
+            {!isWeekView && (
+              <div className="pt-2">
+                <RoutineBlocksBar
+                  blocks={activeDayBlocks}
+                  activeBlock={activeBlock}
+                  onSelectBlock={handleSelectBlock}
+                  blockCounts={blockCounts}
+                  showDoneProgress={activeDayIndex === todayIndex && !isEditMode}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Content Area */}
         <main className="max-w-2xl mx-auto px-4 py-2">
-          {isWeekView ? (
+          {isFocusMode ? (
+            /* Focus Mode ("Agora e Depois") */
+            <FocusModeView
+              cards={todayCards}
+              doneIds={state.done.ids}
+              currentMinutes={currentMinutes}
+              dayName={DAY_NAMES[todayIndex]}
+              onToggleDone={handleToggleDone}
+              onOpenTimer={() => setIsTimerOpen(true)}
+              onExitFocus={() => setIsFocusMode(false)}
+            />
+          ) : isWeekView ? (
             /* Week Overview Screen */
             <WeekOverview
               state={state}

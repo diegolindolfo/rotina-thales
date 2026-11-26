@@ -88,6 +88,12 @@ export const ROUTINE_ILLUSTRATIONS: RoutineIllustration[] = [
   { id: 'celular', label: 'Celular', src: '/illustrations/celular.jpg' },
   { id: 'banho', label: 'Banho', src: '/illustrations/banho.jpg' },
   { id: 'tarefas', label: 'Tarefas da escola', src: '/illustrations/tarefas.jpg' },
+  { id: 'brincar', label: 'Brincar', src: '/illustrations/brincar.jpg' },
+  { id: 'passeio', label: 'Passeio', src: '/illustrations/passeio.jpg' },
+  { id: 'lanche-tarde', label: 'Lanche da tarde', src: '/illustrations/lanche-tarde.jpg' },
+  { id: 'jantar', label: 'Jantar', src: '/illustrations/jantar.jpg' },
+  { id: 'escovar-dentes', label: 'Escovar os dentes', src: '/illustrations/escovar-dentes.jpg' },
+  { id: 'dormir', label: 'Dormir', src: '/illustrations/dormir.jpg' },
 ];
 
 export function getIllustrationById(id?: string): RoutineIllustration | undefined {
@@ -110,6 +116,15 @@ const TITLE_ILLUSTRATION_MAP: Record<string, string> = {
   'banho': 'banho',
   'tarefas da escola': 'tarefas',
   'tarefas': 'tarefas',
+  'brincar': 'brincar',
+  'lanche e brincar': 'brincar',
+  'passeio': 'passeio',
+  'lanche': 'lanche-tarde',
+  'lanche da tarde': 'lanche-tarde',
+  'jantar': 'jantar',
+  'escovar os dentes': 'escovar-dentes',
+  'escovar dentes': 'escovar-dentes',
+  'dormir': 'dormir',
 };
 
 export function resolveCardIllustrationId(
